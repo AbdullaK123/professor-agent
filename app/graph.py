@@ -801,7 +801,7 @@ def create_graph(checkpointer=None):
         checkpointer=checkpointer,
         interrupt_before=["request_new_query"],
         interrupt_after=["quiz", "assignment"],
-        debug=True  # Pause before requesting new query, processing quiz and grading
+        debug=True  
     )
     
     return app

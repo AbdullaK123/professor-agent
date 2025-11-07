@@ -2,9 +2,9 @@
 LangGraph workflow for the Professor Agent
 """
 from langgraph.graph import StateGraph, END
-from typing import TypedDict, Literal, Optional
+from typing import Literal, Optional
+from typing_extensions import TypedDict
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from app.agents import (
     create_learning_plan,
     create_lecture,
@@ -198,7 +198,7 @@ async def process_quiz_answers(state: LearningState) -> LearningState:
         elif question.type == QuestionType.TRUE_FALSE:
             # True/False: compare boolean values
             # User input is string "True" or "False", correct_answer is bool
-            correct_answer: bool = question.correct_answer
+            correct_answer = question.correct_answer
             user_answer_bool = str(user_answer).strip().lower() == "true"
             is_correct = user_answer_bool == correct_answer
             print(f"Q{i+1} [T/F]: User='{user_answer}' -> {user_answer_bool}, Correct={correct_answer} Match={is_correct}")

@@ -3,15 +3,18 @@ name = "professor-agent"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.121.0",
     "gradio>=5.49.1",
     "langchain>=1.0.3",
+    "langchain-anthropic>=1.0.1",
     "langchain-openai>=1.0.2",
     "langchain-tavily>=0.2.13",
     "langgraph>=1.0.2",
     "langgraph-checkpoint-sqlite>=3.0.0",
+    "langgraph-cli[inmem]>=0.4.7",
+    "langserve>=0.3.3",
     "langsmith>=0.4.41",
     "python-dotenv>=1.2.1",
-    "streamlit>=1.51.0",
 ]

@@ -27,63 +27,63 @@ from app.prompts import (
 )
 
 curriculum_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[search],
     system_prompt=LEARNING_PLAN_SYSTEM_PROMPT,
     response_format=ToolStrategy(LearningPlan)
 )
 
 lecture_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[search],
     system_prompt=LECTURE_SYSTEM_PROMPT,
     response_format=ToolStrategy(Lecture)
 )
 
 quiz_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=QUIZ_SYSTEM_PROMPT,
     response_format=ToolStrategy(Quiz)
 )
 
 assignment_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=ASSIGNMENT_SYSTEM_PROMPT,
     response_format=ToolStrategy(Assignment)
 )
 
 grading_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=GRADING_SYSTEM_PROMPT,
     response_format=ToolStrategy(GradingResult)
 )
 
 progress_check_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=PROGRESS_CHECK_SYSTEM_PROMPT,
     response_format=ToolStrategy(ProgressDecision)
 )
 
 repeat_message_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=REPEAT_LESSON_SYSTEM_PROMPT,
     response_format=ToolStrategy(RepeatMessage)
 )
 
 advance_message_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=ADVANCE_LESSON_SYSTEM_PROMPT,
     response_format=ToolStrategy(AdvanceMessage)
 )
 
 short_answer_evaluator_agent = create_agent(
-    "openai:gpt-5-mini",
+    "anthropic:claude-haiku-4-5-20251001",
     tools=[],
     system_prompt=SHORT_ANSWER_EVALUATION_SYSTEM_PROMPT,
     response_format=ToolStrategy(ShortAnswerEvaluation)

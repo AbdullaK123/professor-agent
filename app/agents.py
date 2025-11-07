@@ -2,7 +2,8 @@ from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy
 from app.models import (
     LearningPlan, Lecture, Quiz, Assignment, GradingResult,
-    ProgressDecision, RepeatMessage, AdvanceMessage, ShortAnswerEvaluation
+    ProgressDecision, RepeatMessage, AdvanceMessage, ShortAnswerEvaluation, LearningInput,
+    QuizAnswersParsed, AssignmentSubmissionParsed
 )
 from app.tools import search
 from app.prompts import (
@@ -23,7 +24,20 @@ from app.prompts import (
     ADVANCE_LESSON_SYSTEM_PROMPT,
     ADVANCE_LESSON_PROMPT,
     SHORT_ANSWER_EVALUATION_SYSTEM_PROMPT,
-    SHORT_ANSWER_EVALUATION_PROMPT
+    SHORT_ANSWER_EVALUATION_PROMPT,
+    EXTRACTION_PROMPT,
+    EXTRACTION_SYSTEM_PROMPT,
+    QUIZ_ANSWER_PARSER_SYSTEM_PROMPT,
+    QUIZ_ANSWER_PARSER_PROMPT,
+    ASSIGNMENT_SUBMISSION_PARSER_SYSTEM_PROMPT,
+    ASSIGNMENT_SUBMISSION_PARSER_PROMPT
+)
+
+extraction_agent = create_agent(
+    "anthropic:claude-haiku-4-5-20251001",
+    tools=[],
+    system_prompt=EXTRACTION_SYSTEM_PROMPT,
+    response_format=ToolStrategy(LearningInput)
 )
 
 curriculum_agent = create_agent(
@@ -88,6 +102,18 @@ short_answer_evaluator_agent = create_agent(
     system_prompt=SHORT_ANSWER_EVALUATION_SYSTEM_PROMPT,
     response_format=ToolStrategy(ShortAnswerEvaluation)
 )
+
+async def extract_topic_and_background(query: str) -> LearningInput:
+
+    prompt = EXTRACTION_PROMPT.format(query=query)
+
+    result = await extraction_agent.ainvoke({
+        "messages": [
+            {"role": "user", "content": prompt}
+        ]
+    })
+
+    return result["structured_response"]
 
 async def create_learning_plan(topic: str, background: str) -> LearningPlan:
     """
@@ -491,3 +517,90 @@ async def evaluate_short_answer(question: str, key_points: list[str], student_an
     print(f"[Short Answer Eval] Result: {evaluation.is_correct} - {evaluation.reasoning}")
     
     return evaluation.is_correct
+
+
+# Quiz Answer Parser Agent
+quiz_answer_parser_agent = create_agent(
+    "anthropic:claude-haiku-4-5-20251001",
+    tools=[],
+    system_prompt=QUIZ_ANSWER_PARSER_SYSTEM_PROMPT,
+    response_format=ToolStrategy(QuizAnswersParsed)
+)
+
+
+async def parse_quiz_answers(message: str, quiz_questions_str: str) -> dict[str, str]:
+    """Parse quiz answers from a natural language message.
+    
+    Args:
+        message: The student's message containing their quiz answers
+        quiz_questions_str: String representation of the quiz questions for context
+        
+    Returns:
+        dict: Dictionary mapping question keys (q0-q4) to answers
+        
+    Example:
+        >>> answers = await parse_quiz_answers(
+        ...     "My answers are: 1. A, 2. B, 3. True, 4. C, 5. False",
+        ...     "Quiz questions..."
+        ... )
+        >>> print(answers)
+        {'q0': 'A', 'q1': 'B', 'q2': 'True', 'q3': 'C', 'q4': 'False'}
+    """
+    prompt = QUIZ_ANSWER_PARSER_PROMPT.format(
+        message=message,
+        quiz_questions=quiz_questions_str
+    )
+    
+    result = await quiz_answer_parser_agent.ainvoke({
+        "messages": [{"role": "user", "content": prompt}]
+    })
+    
+    parsed = result['structured_response']
+    return {
+        "q0": parsed.q0,
+        "q1": parsed.q1,
+        "q2": parsed.q2,
+        "q3": parsed.q3,
+        "q4": parsed.q4
+    }
+
+
+# Assignment Submission Parser Agent
+assignment_submission_parser_agent = create_agent(
+    "anthropic:claude-haiku-4-5-20251001",
+    tools=[],
+    system_prompt=ASSIGNMENT_SUBMISSION_PARSER_SYSTEM_PROMPT,
+    response_format=ToolStrategy(AssignmentSubmissionParsed)
+)
+
+
+async def parse_assignment_submission(message: str, assignment_description: str) -> str:
+    """Parse assignment submission from a natural language message.
+    
+    Args:
+        message: The student's message containing their assignment submission
+        assignment_description: Description of the assignment for context
+        
+    Returns:
+        str: The extracted submission text (code, solutions, etc.)
+        
+    Example:
+        >>> submission = await parse_assignment_submission(
+        ...     "Here's my code: ```python\\nprint('Hello')\\n```",
+        ...     "Write a Python program..."
+        ... )
+        >>> print(submission)
+        print('Hello')
+    """
+    prompt = ASSIGNMENT_SUBMISSION_PARSER_PROMPT.format(
+        message=message,
+        assignment_description=assignment_description
+    )
+    
+    result = await assignment_submission_parser_agent.ainvoke({
+        "messages": [{"role": "user", "content": prompt}]
+    })
+    
+    parsed = result['structured_response']
+    return parsed.submission_text
+

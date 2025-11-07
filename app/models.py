@@ -26,7 +26,13 @@ class Confidence(str, Enum):
     MEDIUM = "Medium"
     LOW = "Low"
 
+class MessageRequest(BaseModel):
+    query: str
 
+class LearningInput(BaseModel):
+    topic: str
+    background: str
+    
 # Models for Learning Plan
 class Lesson(BaseModel):
     """Individual lesson in a learning plan"""
@@ -199,6 +205,21 @@ class ShortAnswerEvaluation(BaseModel):
     """Evaluation result for a short answer question"""
     is_correct: bool = Field(..., description="Whether the answer demonstrates sufficient understanding")
     reasoning: str = Field(..., description="Brief explanation of the evaluation")
+
+
+# Models for parsing user input
+class QuizAnswersParsed(BaseModel):
+    """Parsed quiz answers from user message"""
+    q0: str = Field(..., description="Answer to question 1 (e.g., 'A', 'True', or short text)")
+    q1: str = Field(..., description="Answer to question 2")
+    q2: str = Field(..., description="Answer to question 3")
+    q3: str = Field(..., description="Answer to question 4")
+    q4: str = Field(..., description="Answer to question 5")
+
+
+class AssignmentSubmissionParsed(BaseModel):
+    """Parsed assignment submission from user message"""
+    submission_text: str = Field(..., description="The actual code, solution, or work submitted by the student. Extract all code blocks, file contents, or answers from the message.")
 
 
 # Models for State Management

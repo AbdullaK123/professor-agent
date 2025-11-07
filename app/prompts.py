@@ -3,6 +3,14 @@
 
 from langchain_core.prompts import PromptTemplate
 
+EXTRACTION_SYSTEM_PROMPT = """You are an expert communicator who specializes in extracting the intent behind what people say"""
+EXTRACTION_PROMPT = PromptTemplate(
+    template="""
+   Extract the topic the user wants to learn, along with their background from the following text: \n{query}\n If you can not detect the topic nor the user's background both must be labeled as 'failed to detect' and nothing else.
+   """,
+   input_variables=["query"]
+)
+
 
 # System Prompts
 PROFESSOR_SYSTEM_PROMPT = """You are an expert professor with deep knowledge across many subjects. You are patient and encouraging, clear in your explanations, skilled at adapting to different learning styles, focused on understanding over memorization, and supportive of student growth and mistakes as learning opportunities. Always maintain a warm, professional teaching demeanor."""
@@ -464,6 +472,59 @@ Return your evaluation as a JSON object with this exact structure:
     "reasoning": "Brief explanation of why the answer is correct or incorrect"
 }}
 
+
 Be fair but maintain academic standards - partial understanding or vague answers should be marked incorrect.""",
     input_variables=["question", "key_points", "student_answer"]
 )
+
+
+# Quiz Answer Parsing Prompt
+QUIZ_ANSWER_PARSER_SYSTEM_PROMPT = """You are an expert at parsing student quiz answers from natural language text.
+Your job is to extract exactly 5 answers (q0 through q4) from the student's message.
+- For multiple choice: extract the letter (A, B, C, or D)
+- For true/false: extract "True" or "False"
+- For short answer: extract the full text of their answer
+Be very careful to map answers to the correct question numbers."""
+
+QUIZ_ANSWER_PARSER_PROMPT = PromptTemplate(
+    template="""Student's message with quiz answers:
+{message}
+
+Quiz questions for reference:
+{quiz_questions}
+
+Extract the 5 answers from the message and map them to q0, q1, q2, q3, and q4.
+- If the student numbered their answers (1, 2, 3...), remember that q0 = question 1, q1 = question 2, etc.
+- For multiple choice questions, extract just the letter (A, B, C, or D)
+- For true/false questions, extract "True" or "False"
+- For short answer questions, extract their full answer text
+- If an answer is missing or unclear, use "No answer provided"
+
+Return the answers in the structured format with fields q0, q1, q2, q3, q4.""",
+    input_variables=["message", "quiz_questions"]
+)
+
+
+# Assignment Submission Parsing Prompt
+ASSIGNMENT_SUBMISSION_PARSER_SYSTEM_PROMPT = """You are an expert at extracting student work from chat messages.
+Students may submit code, text, files, or other work embedded in their messages.
+Your job is to extract the actual submission content - all the code, solutions, or work they've submitted."""
+
+ASSIGNMENT_SUBMISSION_PARSER_PROMPT = PromptTemplate(
+    template="""Student's submission message:
+{message}
+
+Assignment details for context:
+{assignment_description}
+
+Extract the actual code, solution, or work the student has submitted. This might include:
+- Code blocks (extract the code itself)
+- Multiple files (include all files with clear separation)
+- Written answers or explanations
+- Links or references to their work
+
+Combine everything they submitted into the submission_text field. Preserve code formatting and structure.
+If they submitted multiple files, clearly separate them with comments like '# File: filename.py'.""",
+    input_variables=["message", "assignment_description"]
+)
+

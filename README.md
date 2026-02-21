@@ -1,231 +1,95 @@
-# 🎓 Professor Agent
+# Professor Agent
 
-An AI-powered teaching system built with LangGraph that provides personalized, adaptive learning experiences. The agent acts as an expert professor, creating customized learning plans, delivering lectures, administering assessments, and adapting to student progress.
+An autonomous AI teaching system built with LangGraph. Give it a topic and your background — it generates a curriculum, delivers lectures, quizzes you, assigns hands-on work, grades it, and decides if you should advance or review. No human instructor needed.
 
-## 🌟 Features
+## How It Works
 
-- **Personalized Learning Plans**: Creates customized curricula based on topic and student background
-- **Interactive Lectures**: Delivers engaging, structured lectures with real-world examples
-- **Adaptive Assessments**: Generates quizzes and assignments tailored to learning objectives
-- **Intelligent Progress Tracking**: Determines when students should advance or review material
-- **Supportive Feedback**: Provides encouraging messages and constructive guidance
-- **Web-Enhanced Content**: Uses Tavily Search to incorporate current, relevant information
-
-## 🏗️ Architecture
-
-### LangGraph Workflow
+The system orchestrates 11 specialized AI agents through a stateful graph:
 
 ```
-generate_plan → check_progress → lecture → quiz → assignment → grade
-                     ↑              ↑                              ↓
-                     |              └─────── repeat ←────────── decision
-                     └──────────────── advance ←─────────────────┘
+User Query
+  → Extract topic & background
+  → Generate learning plan (5-8 lessons)
+  → For each lesson:
+      → Deliver lecture (with web-enriched content)
+      → Administer quiz (5 questions, mixed types)
+      → [Human input: quiz answers]
+      → Grade quiz (including LLM-evaluated short answers)
+      → Create hands-on assignment
+      → [Human input: submission]
+      → Grade assignment
+      → Decide: advance or repeat?
+  → Course complete
 ```
 
-### Components
+The graph uses `interrupt_after` on quiz and assignment nodes to pause execution and wait for student input, then resumes processing from where it left off.
 
-1. **Learning Plan Generation**: Breaks down topics into progressive lessons
-2. **Progress Checking**: Validates student is ready for next lesson
-3. **Lecture Delivery**: Creates comprehensive, engaging content
-4. **Quiz Administration**: Tests understanding with mixed question types
-5. **Assignment Creation**: Generates hands-on practice exercises
-6. **Grading**: Provides detailed feedback with scores
-7. **Decision Engine**: Determines advance vs. repeat based on performance
-8. **Messaging**: Delivers encouraging or congratulatory messages
+## Key Design Decisions
 
-## 📦 Installation
+**Multi-agent architecture over monolithic prompts.** Each agent has a single responsibility (lecture, quiz, grading, etc.) with its own system prompt and structured Pydantic output. This keeps each call focused and the outputs predictable.
 
-### Prerequisites
+**Structured outputs everywhere.** Every agent returns validated Pydantic models — `LearningPlan`, `Lecture`, `Quiz`, `GradingResult`, `ProgressDecision`, etc. No parsing JSON from raw text.
 
-- Python 3.11+
-- [Rye](https://rye-up.com/) package manager
-- OpenAI API key
-- Tavily API key (for web search)
+**LLM-based short answer grading.** Instead of keyword matching, a dedicated evaluator agent assesses whether free-text answers demonstrate actual understanding.
 
-### Setup
+**Natural language input parsing.** Students type answers however they want. Parser agents extract structured quiz answers (`q0`–`q4`) and assignment submissions from conversational messages.
 
-1. Clone the repository:
+**Stateful progression.** The graph tracks lesson index, attempt count, weak points, and scores across the full session. The decision engine uses quiz + assignment scores + weak points + attempt count to determine advancement.
+
+## Architecture
+
+```
+app/
+├── graph.py       # LangGraph state machine — nodes, edges, routing logic
+├── agents.py      # 11 agent definitions + async invocation functions
+├── models.py      # Pydantic models for all structured outputs
+├── prompts.py     # System prompts and prompt templates
+└── tools.py       # Tavily web search integration
+main.py            # FastAPI server with LangServe
+langgraph.json     # LangGraph deployment config
+```
+
+## Tech Stack
+
+- **Orchestration:** LangGraph (stateful graph with human-in-the-loop)
+- **LLM:** Claude Haiku 4.5 (all 11 agents)
+- **Web Search:** Tavily (enriches lectures with current information)
+- **Structured Output:** Pydantic models via LangChain's ToolStrategy
+- **API:** FastAPI + LangServe
+- **State:** InMemorySaver (with optional SQLite persistence)
+
+## Setup
+
 ```bash
-git clone <repository-url>
-cd professor-agent
-```
-
-2. Install dependencies:
-```bash
+# Install dependencies
 rye sync
-```
 
-3. Set up environment variables:
-```bash
-export OPENAI_API_KEY="your-openai-api-key"
-export TAVILY_API_KEY="your-tavily-api-key"
-```
+# Set environment variables
+cp .env.example .env
+# Add your OPENAI_API_KEY and TAVILY_API_KEY
 
-Or create a `.env` file:
-```
-OPENAI_API_KEY=your-openai-api-key
-TAVILY_API_KEY=your-tavily-api-key
-```
-
-## 🚀 Usage
-
-### Run the Demo
-
-```bash
+# Run the server
 rye run python main.py
 ```
 
-This will demonstrate the complete learning flow for "Python Functions" topic.
+Or deploy with LangGraph:
 
-### Run Tests
-
-Test individual agents:
 ```bash
-# Test curriculum generation
-rye run python scripts/test_curriculum_agent.py
-
-# Test lecture creation
-rye run python scripts/test_lecture_agent.py
-
-# Test full integration
-rye run python scripts/test_main.py
+langgraph up
 ```
 
-### Use as a Library
+## The 11 Agents
 
-```python
-from main import app, LearningState
-
-async def teach_topic():
-    initial_state = {
-        "topic": "Machine Learning Basics",
-        "background": "Knows Python, no ML experience",
-        "learning_plan": None,
-        "current_lesson_idx": 0,
-        "lecture_content": None,
-        "quiz_results": None,
-        "quiz_score": 0,
-        "assignment": None,
-        "assignment_submission": "",
-        "assignment_score": 0,
-        "grading_result": None,
-        "weak_points": [],
-        "attempt_count": 0,
-        "message": "",
-        "completed": False
-    }
-    
-    config = {"configurable": {"thread_id": "session-123"}}
-    
-    async for event in app.astream(initial_state, config):
-        # Process each step
-        pass
-```
-
-## 📁 Project Structure
-
-```
-professor-agent/
-├── app/
-│   ├── __init__.py
-│   ├── models.py          # Pydantic models for structured outputs
-│   ├── prompts.py         # All prompt templates
-│   ├── tools.py           # External tools (Tavily search)
-│   └── agents.py          # Agent creation and invocation functions
-├── scripts/
-│   ├── test_curriculum_agent.py
-│   ├── test_lecture_agent.py
-│   └── test_main.py
-├── main.py                # LangGraph workflow and entry point
-├── pyproject.toml         # Project dependencies
-└── README.md
-```
-
-## 🧩 Key Components
-
-### Models (`app/models.py`)
-
-Pydantic models ensuring structured, validated outputs:
-- `LearningPlan`: Complete curriculum with lessons
-- `Lecture`: Structured lecture content with segments
-- `Quiz`: Assessment with multiple question types
-- `Assignment`: Hands-on exercises with steps
-- `GradingResult`: Detailed feedback and scores
-- `ProgressDecision`: Advance or repeat determination
-- `RepeatMessage` / `AdvanceMessage`: Student communications
-
-### Prompts (`app/prompts.py`)
-
-Eight specialized prompts for different teaching tasks:
-- Learning plan creation
-- Lecture development
-- Quiz generation
-- Assignment design
-- Grading and feedback
-- Progress evaluation
-- Repeat/advance messaging
-
-### Agents (`app/agents.py`)
-
-Eight async functions using LangChain agents:
-- `create_learning_plan()`: Generates personalized curricula
-- `create_lecture()`: Develops engaging lectures
-- `create_quiz()`: Creates assessments
-- `create_assignment()`: Designs practical exercises
-- `grade_assignment()`: Evaluates student work
-- `check_progress()`: Determines advancement
-- `create_repeat_message()`: Provides encouragement
-- `create_advance_message()`: Celebrates success
-
-## 🎯 Use Cases
-
-1. **Self-Paced Learning**: Students learn topics at their own pace with adaptive feedback
-2. **Corporate Training**: Automated onboarding and skill development
-3. **Educational Platforms**: Integration into e-learning systems
-4. **Tutoring Systems**: Supplemental instruction for challenging subjects
-5. **Skill Assessment**: Evaluate and improve specific competencies
-
-## 🔧 Configuration
-
-### Model Selection
-
-Change the LLM in `app/agents.py`:
-```python
-agent = create_agent(
-    "openai:gpt-4o",  # or "openai:gpt-4o-mini", "anthropic:claude-3-5-sonnet-latest"
-    tools=[...],
-    system_prompt=...,
-    response_format=...
-)
-```
-
-### Search Configuration
-
-Modify search parameters in `app/tools.py`:
-```python
-search = TavilySearch(
-    max_results=10,  # Default: 5
-    search_depth="basic"  # or "advanced"
-)
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Areas for enhancement:
-- Additional question types (coding challenges, diagrams)
-- Multi-modal content (images, videos)
-- Real-time student interaction
-- Progress analytics and reporting
-- Support for multiple languages
-- Integration with LMS platforms
-
-## 📄 License
-
-MIT License
-
-## 🙏 Acknowledgments
-
-- Built with [LangGraph](https://github.com/langchain-ai/langgraph)
-- Powered by [LangChain](https://github.com/langchain-ai/langchain)
-- Search by [Tavily](https://tavily.com/)
-- Models by [OpenAI](https://openai.com/)
+| Agent | Purpose | Output Model |
+|-------|---------|-------------|
+| Extraction | Parse topic + background from user query | `LearningInput` |
+| Curriculum | Generate 5-8 lesson learning plan | `LearningPlan` |
+| Lecture | Create 15-20 min structured lecture | `Lecture` |
+| Quiz | Generate 5 mixed-type questions | `Quiz` |
+| Quiz Parser | Extract answers from natural language | `QuizAnswersParsed` |
+| Short Answer Evaluator | LLM-grade free-text responses | `ShortAnswerEvaluation` |
+| Assignment | Design hands-on exercises | `Assignment` |
+| Submission Parser | Extract work from student messages | `AssignmentSubmissionParsed` |
+| Grading | Score + detailed feedback | `GradingResult` |
+| Progress Check | Advance or repeat decision | `ProgressDecision` |
+| Messaging | Encouragement or congratulations | `RepeatMessage` / `AdvanceMessage` |
